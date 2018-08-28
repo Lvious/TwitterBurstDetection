@@ -14,6 +14,6 @@ class Preprocessor:
         _tid   = _tweet.tid
         _text  = _tweet.tweet
         _tokens = tokenize.tokenizeRawTweetText(_text)
-        _tokens = list(set(filter(lambda x:not x is "" and x not in stopwords and x not in tokenize.e_punc and not x.startswith('http'),[re.sub(r'[^A-Za-z0-9\':/.&$|@%\\]','',tokenize.deRepeatWords(i.lower())) for i in _tokens])))
-        return stream.PreprocessedTweetItem(_t,_tid,_tokens)
+        _tokens = list(set(filter(lambda x:not x is "" and x not in stopwords and x not in tokenize.e_punc and not x.startswith('http'),[re.sub(r'[^A-Za-z0-9\':/\.&$|@%\\]','',tokenize.deRepeatWords(i.lower())) for i in _tokens])))
+        return stream.PreprocessedTweetItem(_t,_tid,_tokens,_text)
         

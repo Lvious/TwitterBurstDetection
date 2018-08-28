@@ -29,14 +29,14 @@ class RawTweetItem(stream):
         return datetime.utcfromtimestamp(int(self.timestamp))
 class PreprocessedTweetItem:
 
-    def __init__(self, _t, _tid, _tokens):
+    def __init__(self, _t, _tid, _tokens,_text):
         if isinstance(_t, datetime):
             self.timestamp = calendar.timegm(_t.timetuple())
         else:
             self.timestamp = _t
         self.tokens = _tokens
         self.tid = _tid
-
+        self.text = _text
     def datetime(self):
         return datetime.utcfromtimestamp(int(self.timestamp))
     
