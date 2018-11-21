@@ -8,8 +8,7 @@ import re
 import pickle
 import pytz
 from DB.DBClient import DBClient
-import sys
-import line_profiler
+
 # tw_stream = tweet_stream.tweetStreamFrom1dayCSV(filename)
 conn = DBClient().client.conn
 
@@ -32,10 +31,7 @@ def main():
     count = 0
     while True:
         try:
-
             result = next(_detection)
-            break
-
             count+=1
             if count%1000==0:
                 print(count)
@@ -83,11 +79,11 @@ def main():
                     print(datetime.fromtimestamp(sig_instance.timestamp,tz),event)
                     print('==============================')
 if __name__=='__main__':
-    from line_profiler import LineProfiler
-
-    profile = line_profiler.LineProfiler(main)  # 把函数传递到性能分析器
-    profile.enable()  # 开始分析
+    # import sys
+    # import line_profiler
+    # profile = line_profiler.LineProfiler(main)  # 把函数传递到性能分析器
+    # profile.enable()  # 开始分析
+    # main()
+    # profile.disable()  # 停止分析
+    # profile.print_stats(sys.stdout)  # 打印出性能分析结果
     main()
-    profile.disable()  # 停止分析
-    profile.print_stats(sys.stdout)  # 打印出性能分析结果
-
