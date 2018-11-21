@@ -15,6 +15,7 @@ conn = DBClient().client.conn
 
 tw_stream = tweet_stream.tweetStreamFromRedisSimple("tweets")
 
+
 _processor = preprocessor.Preprocessor(tw_stream)
 
 observed_list=['manhattan','york','truck','attack','police','terrorist']
@@ -26,6 +27,7 @@ is_dual = False
 
 tz = pytz.timezone("America/Virgin")
 # pdb.set_trace()
+
 def main():
     count = 0
     while True:
@@ -33,6 +35,7 @@ def main():
 
             result = next(_detection)
             break
+
             count+=1
             if count%1000==0:
                 print(count)
@@ -87,3 +90,4 @@ if __name__=='__main__':
     main()
     profile.disable()  # 停止分析
     profile.print_stats(sys.stdout)  # 打印出性能分析结果
+
