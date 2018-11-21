@@ -1,5 +1,10 @@
 import configparser
-config_file = './parameters.ini'
+import os
+
+configDirPath = os.path.split(os.path.realpath(__file__))[0]
+
+config_file = os.path.join(configDirPath,'parameters.ini')
+
 config = configparser.ConfigParser()
 config.read(config_file)
 class parse_config:
@@ -9,6 +14,7 @@ class parse_config:
     @staticmethod
     def set(section,option,value):
         config.set(section,option,value)
+    @staticmethod
     def write():
         config.write(open(config_file,'w'))
     @staticmethod

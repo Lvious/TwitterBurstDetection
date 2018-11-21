@@ -1,6 +1,6 @@
-from parse_config import config as parse_config
-import fast_signi
-import stemmer
+from Config.parse_config import config as parse_config
+from Utils import fast_signi
+from Preprocess import stemmer
 import hashlib
 
 _SIGNI_THRESHOLD = eval(parse_config.get('detection', 'detection_threshold'))
@@ -78,3 +78,4 @@ class SigniProcessor:
 #             print(max_sig_instance)
             return max_sig_instance,sig_list
         return None,None
+

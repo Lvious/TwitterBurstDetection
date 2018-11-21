@@ -2,7 +2,7 @@ from nltk.stem.lancaster import *
 from nltk.stem.snowball import *
 from nltk.stem.porter import *
 
-from parse_config import config
+from Config.parse_config import config
 
 stemmer = None
 if config.get('pre_process', 'stemmer') == 'Snowball':

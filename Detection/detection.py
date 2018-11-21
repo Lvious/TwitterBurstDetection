@@ -1,9 +1,8 @@
-import stream
-from parse_config import config as parse_config
-import signi_processor
+from Stream import stream
+from Config.parse_config import config as parse_config
+from Component import signi_processor
 from datetime import datetime,timedelta
-import fast_signi
-
+from Utils import fast_signi
 
 _THREAD_GAP = eval(parse_config.get('detection', 'thread_gap'))
 
@@ -66,7 +65,7 @@ class DetectionComponent(stream.stream):
         _cycle          = eval(parse_config.get('significance','cycle'))
         _average        = eval(parse_config.get('significance','average'))
         
-        fast_signi.SignificanceScorer.set_window_size(_window_size,_cycle,_average)
+        fast_signi.SignificanceScorer.set_window_size(_window_size, _cycle, _average)
         
         _start_time = parse_config.get('detection','start_time')
         _end_time   = parse_config.get('detection','end_time')

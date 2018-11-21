@@ -1,5 +1,5 @@
 from math import  sqrt
-_WINDOW_SIZE = 15
+_WINDOW_SIZE = 5
 
 _ALPHA = 1.0 * _WINDOW_SIZE / (24*60)
 
