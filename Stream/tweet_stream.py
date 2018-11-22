@@ -85,7 +85,6 @@ class tweetStreamFromRedisSimple(stream.ItemStream):
         self.pre_cnt = self.cnt
     def __next__(self):
         while True:
-            time.sleep(1)
             raw = self.db.conn.lrange(self.key,self.cnt,self.cnt)[0]
             self.cnt+=1
             if not raw:
