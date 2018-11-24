@@ -12,8 +12,8 @@ from DB.DBClient import DBClient
 # tw_stream = tweet_stream.tweetStreamFrom1dayCSV(filename)
 conn = DBClient().client.conn
 
-# tw_stream = tweet_stream.tweetStreamFromRedisSimple("tweets")
-tw_stream = tweet_stream.tweetStreamFromLocalCSV("D:/Datasets/temp/ts_01.json")
+tw_stream = tweet_stream.tweetStreamFromRedisSimple("tweets")
+# tw_stream = tweet_stream.tweetStreamFromLocalCSV("D:/Datasets/temp/ts_01.json")
 
 
 _processor = preprocessor.Preprocessor(tw_stream)

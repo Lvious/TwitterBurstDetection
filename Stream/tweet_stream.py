@@ -82,6 +82,7 @@ class tweetStreamFromRedisSimple(stream.ItemStream):
         self.key = key
         self.cnt = 0
         self.pre_time = datetime.now().timestamp()
+        self.start_time = datetime.now().timestamp()
         self.pre_cnt = self.cnt
         self.speed = 10
     def __next__(self):
@@ -155,8 +156,8 @@ def parseHours(seconds):
     return "{:0>2}:{:0>2}:{:0>2}".format(hours,minutes,seconds)
 
 def main():
-    # ts = tweetStreamFromRedisSimple("tweets")
-    ts = tweetStreamFromLocalCSV("D:/Datasets/temp/ts_01.json")
+    ts = tweetStreamFromRedisSimple("tweets")
+    #ts = tweetStreamFromLocalCSV("D:/Datasets/temp/ts_01.json")
     next(ts)
 
 if __name__ == '__main__':
