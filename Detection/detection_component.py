@@ -1,18 +1,15 @@
-import profile
-
 from DB.DBClient import DBClient
-from Stream import stream
-from Config.parse_config import config as parse_config
+from Preprocess import preprocessor
+from Stream import stream,tweet_stream
 import Utils.fast_signi as fast_signi
 from Component import signi_component
 from datetime import datetime, timedelta
 from collections import deque
-import logging
-import logging.config
-
+from Config.parse_config import parse_config
+import Preprocess.stemmer as stemmer
 # logging start
-logging.config.fileConfig('Config/parameters.ini')
-logger = logging.getLogger('root')
+# logging.config.fileConfig('Config/parameters.ini')
+# logger = logging.getLogger('root')
 #detection time gap
 _THREAD_GAP = eval(parse_config.get('detection', 'thread_gap'))
 # sinificance config
@@ -37,19 +34,18 @@ class Slice:
     def new_thread_dual_windows(self, sig_instance):
         _t, _count, _ewma, _ewmvar, _sig, _keywords, _tid, _ratio, _freq = sig_instance
 
-        self.start = _t
-        self.end = _t
+        self.start = sig_instance.timestamp
+        self.end = sig_instance.timestamp
 
-        self.keywords = set(_keywords)
-        self.first_sig = _sig
-        self.sig = _sig
-        self.first_keywords = _keywords
+        self.keywords = set(sig_instance.token)
+        self.first_sig = sig_instance.sig
+        self.sig = sig_instance.sig
+        self.first_keywords = sig_instance.token
 
     def jaccard(self, k1, k2):
         return len(set(k1) & set(k2)) / float(len(set(k1) | set(k2)))
 
     def add_to_thread_dual_windows(self, sig_instance, ptweet=None):
-        _t, _count, _ewma, _ewmvar, _sig, _keywords, _tid, _ratio, _freq = sig_instance
         all_key = []
         for t in self.keywords:
             all_key.append(t[0])
@@ -75,16 +71,15 @@ class Slice:
         else:
             return False
         """不返回false，将sig_instance加入到当前的thread"""
-        if (self.end - self.start) > timedelta(minutes=30):
-            return False
+        # if (self.end - self.start) > 300:
+        #     return False
 
-        if sig_instance.gig > self.sig:
+        if sig_instance.sig > self.sig:
             self.sig = sig_instance.sig
 
         self.hang.append(sig_instance.__dict__)
         if len(self.keywords) < 200:
-            self.keywords |= set(_keywords)
-
+            self.keywords |= set(sig_instance.token)
         return True
 
 '''大体思想应该是得到了满足突发条件的sig_instance，考虑用有效的方法减少冗余'''
@@ -108,8 +103,8 @@ class DetectionComponent(stream.stream):
             return ptweet,stream.End_Of_Stream
         sig_instances = self.processor.process(ptweet) #dual-windows process
         if sig_instances:
-            sig_instance = self.process_dual_windows(sig_instances, ptweet)
-            return sig_instance
+            # sig_instance = self.process_dual_windows(sig_instances, ptweet)
+            return sig_instances[0]
         else:
             return None
 
@@ -159,3 +154,64 @@ class wapperDetectionComponent(DetectionComponent):
         super(wapperDetectionComponent, self).__init__(_stream)
         self.processor.set_observed(observed_list)
 
+def main():
+    import spacy
+    nlp = spacy.load("en")
+    tw_stream = tweet_stream.tweetStreamFromLocalCSV("D:/Datasets/temp/ts_01.json")
+    _processor = preprocessor.Preprocessor(tw_stream)
+
+    observed_list=['manhattan','york','truck','attack','police','terrorist']
+
+    # _detection = detection.wapperDetectionComponent(_processor,observed_list)
+    _detection = DetectionComponent(_processor)
+    ptweet = next(_detection.stream)
+    tk = list()
+    doc = nlp(" ".join(ptweet.tokens))
+    list(map(lambda x: stemmer.stem(x), ptweet.tokens))
+    ptweet = next(_detection.stream)
+    doc = nlp(" ".join(ptweet.tokens))
+    list(map(lambda x: stemmer.stem(x), ptweet.tokens))
+    ptweet = next(_detection.stream)
+    doc = nlp(" ".join(ptweet.tokens))
+    list(map(lambda x: stemmer.stem(x), ptweet.tokens))
+    ptweet = next(_detection.stream)
+    doc = nlp(" ".join(ptweet.tokens))
+    list(map(lambda x: stemmer.stem(x), ptweet.tokens))
+    ptweet = next(_detection.stream)
+    doc = nlp(" ".join(ptweet.tokens))
+    list(map(lambda x: stemmer.stem(x), ptweet.tokens))
+    ptweet = next(_detection.stream)
+    doc = nlp(" ".join(ptweet.tokens))
+    list(map(lambda x: stemmer.stem(x), ptweet.tokens))
+    ptweet = next(_detection.stream)
+    doc = nlp(" ".join(ptweet.tokens))
+    list(map(lambda x: stemmer.stem(x), ptweet.tokens))
+
+    doc = nlp(" ".join(ptweet.tokens))
+if __name__ == '__main__':
+
+    tw_stream = tweet_stream.tweetStreamFromLocalCSV("D:/Datasets/temp/ts_01.json")
+    _processor = preprocessor.Preprocessor(tw_stream)
+
+    observed_list=['manhattan','york','truck','attack','police','terrorist']
+
+    # _detection = detection.wapperDetectionComponent(_processor,observed_list)
+    _detection = DetectionComponent(_processor)
+    next(_detection)
+    next(_detection)
+    next(_detection)
+    next(_detection)
+    ptweet = next(_detection.stream)
+    print(ptweet.tokens)
+
+    flag = 1
+    if flag:
+        import sys
+        import line_profiler
+        profile = line_profiler.LineProfiler(main)  # 把函数传递到性能分析器
+        profile.enable()  # 开始分析
+        main()
+        profile.disable()  # 停止分析
+        profile.print_stats(sys.stdout)  # 打印出性能分析结果
+    else:
+        main()

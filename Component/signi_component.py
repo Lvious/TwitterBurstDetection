@@ -1,8 +1,7 @@
 from Config.parse_config import config as parse_config
 import Utils.fast_signi as fast_signi
-import Preprocess.stemmer as stemmer
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime
 import math
 import pickle
 from collections import deque
@@ -10,6 +9,7 @@ import copy
 import line_profiler
 import sys
 from Preprocess.preprocessor import Preprocessor
+
 _SIGNI_THRESHOLD = eval(parse_config.get('detection', 'detection_threshold'))
 
 _SIGNI_TYPE = parse_config.get('detection', 'detection_signi_type')
@@ -83,10 +83,19 @@ class Container():
     '''滑动窗口，暂定将container做滑动，内存消耗便会有限，设定滑动m时间滑动一次，滑动窗口为k'''
     def slideWindow(self):
         pass
-    '''返回最小score,问题：不能保证返回同一个score的count，ewma，ewmvar？'''
-    def getMinScore(self,token,attr="count"):
+    '''按照某属性排序，返回最小score'''
+    def getMinScore(self,token,attr="ewma"):
         assert attr in ["count","ewma","ewmvar"]
-        return min(self.getScores(token),key=lambda x:getattr(x, attr))
+        minScore = None
+        sortedScore = sorted(self.getScores(token),key=lambda x:getattr(x, attr))
+        for x in sortedScore:
+            if getattr(x,attr)==0:
+                continue
+            minScore = x
+            break
+        if minScore is None:
+            minScore = sortedScore[0]
+        return minScore
 
 class Data:
     def __init__(self, timestamp, tid, count, ewma, ewmvar, sig, token,tweet):
@@ -142,7 +151,7 @@ class SlideWindow:
         else:
             pass
     '''返回containers中观察值'''
-    def getDataPool(self,token,type="count"):
+    def getDataPool(self,token,type="ewma"):
         dataPool = list()
         for container in self.windowPool:
             dataPool.append(container.getMinScore(token,type))
@@ -182,7 +191,8 @@ class SigniProcessor:
     def getUniquePairs(self, tweet):
         self.timestamp = tweet.timestamp
         self.tweet = tweet
-        tokens = list(map(lambda x: stemmer.stem(x), tweet.tokens))
+        # tags = set(['NN', 'NNS', 'NNP', 'NNPS','VB', 'VBD', 'VBG', 'VBN', 'VBP', 'VBZ','WP','PRP','PRP$'])
+        tokens = tweet.tokens
         unique_words = set(tokens)
         unique_word_pairs = set()
         for i in unique_words:
@@ -194,7 +204,7 @@ class SigniProcessor:
     def getUniqueTokens(self, tweet):
         if len(tweet.tokens) < 3:  # 如果tokens长度小于3，则跳过处理
             return None
-        tokens = list(map(lambda x: stemmer.stem(x), tweet.tokens))
+        tokens = tweet.tokens
         uniqueTokens = set(tokens)
         return uniqueTokens
 
@@ -217,7 +227,8 @@ class SigniProcessor:
         if len(tweet.tokens) < 3:  # 如果tokens长度小于3，则跳过处理
             return None
         sig_list = list()
-        if not self.getUniquePairs(tweet):
+        uniquePaires = self.getUniquePairs(tweet)
+        if not uniquePaires:
             return None
         preSig, postSig, freq = 0., 0., 0.
         '''这个方法还未完善'''
@@ -226,7 +237,7 @@ class SigniProcessor:
         self.containerM2.setCurrentTimestamp(tweet.timestamp)
         self.slideWindow.slideOneContainer(self.containerM2)
         '''处理wordpair'''
-        for token in self.getUniquePairs(tweet):
+        for token in uniquePaires:
             if _SIGNI_TYPE == 's':
                 # min_instance = list()
                 # scores = self.containerM2.getScores(token)
@@ -236,10 +247,11 @@ class SigniProcessor:
                 # count, ewma, ewmavar, sig = min(min_instance, key=lambda x: x[1])
                 # data = Data(self.timestamp, count, ewma, ewmavar, sig, token)
                 # slideWindow = self.containerM2.getSlideWindow(token)
-                self.containerM2.observe(token)
+                self.containerM2.observe(token)#每个tuple的执行时间大约600个时间单位
                 if self.slideWindow.isFull():
                     dataPool = self.slideWindow.getDataPool(token,"count")
-                    count,ewma,ewmvar = dataPool[-1].count,dataPool[-1].ewma,dataPool[-1].count.ewmvar
+                    '''dataPool中最后一个score作为当前的检测值'''
+                    count,ewma,ewmvar = dataPool[-1].count,dataPool[-1].ewma,dataPool[-1].ewmvar
                     preSig, postSig = self.checkSig(dataPool)
                     # frequecy = self.checkFrequency(countDataPool)
                     sig_instance = Data(tweet.timestamp, tweet.tid, count,ewma,ewmvar,postSig,token,tweet.text)
@@ -257,11 +269,11 @@ class SigniProcessor:
 
     def checkSig(self, dataPool):
         splitCur = int(len(dataPool) / 2)
-        mu_pre = [x.ewma for x in dataPool[int(splitCur / 2)]]
-        mu_post = [x.ewma for x in dataPool[int(splitCur / 2)+splitCur]]
-        preDataPool, postDayaPool = [x.count for x in dataPool[:splitCur]], [x.count for x in dataPool[splitCur:]]
+        mu_pre = dataPool[int(splitCur / 2)].ewma
+        mu_post = dataPool[int(splitCur / 2)+splitCur].ewma
+        preDataPool, postDataPool = [x.count for x in dataPool[:splitCur]], [x.count for x in dataPool[splitCur:]]
         preSig = self.t_test(preDataPool,mu_pre)
-        postSig = self.t_test(postDayaPool,mu_post)
+        postSig = self.t_test(postDataPool,mu_post)
         return preSig, postSig
     '''无法实现--'''
     # def checkFrequency(self, ):
@@ -291,20 +303,53 @@ class SigniProcessor:
         middleCur = len(dataPool)/2
         t_value = 0
         for d in dataPool:
-            t_value += (d.count - meanValue)**2
+            t_value += (d - meanValue)**2
+        if t_value==0:
+            sig = 0
+            return sig
         sig = (meanValue - mu) / math.sqrt(t_value / (middleCur - 1))
         return sig
 def main():
+    import spacy
+    nlp = spacy.load('en')
     sig = SigniProcessor()
     from Stream.tweet_stream import tweetStreamFromRedisSimple as ts_stream
     st = ts_stream("tweets")
     pst = Preprocessor(st)
     ptweet = next(pst)
     sig.process(ptweet)
-
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    doc = nlp(" ".join(ptweet.tokens))
 if __name__ == '__main__':
-    profile = line_profiler.LineProfiler(main)  # 把函数传递到性能分析器
+    sig = SigniProcessor()
+    from Stream.tweet_stream import tweetStreamFromRedisSimple as ts_stream
+    st = ts_stream("tweets")
+    pst = Preprocessor(st)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    sig.process(ptweet)
+    ptweet = next(pst)
+    print(ptweet.tokens)
+    profile = line_profiler.LineProfiler(sig.process)  # 把函数传递到性能分析器
     profile.enable()  # 开始分析
-    main()
+    sig.process(ptweet)
     profile.disable()  # 停止分析
     profile.print_stats(sys.stdout)  # 打印出性能分析结果

@@ -83,6 +83,7 @@ class tweetStreamFromRedisSimple(stream.ItemStream):
         self.cnt = 0
         self.pre_time = datetime.now().timestamp()
         self.pre_cnt = self.cnt
+        self.speed = 10
     def __next__(self):
         while True:
             raw = self.db.conn.lrange(self.key,self.cnt,self.cnt)[0]
@@ -99,25 +100,79 @@ class tweetStreamFromRedisSimple(stream.ItemStream):
             str_raw = raw.decode('gbk')
 
         now  = datetime.now().timestamp()
-        speed = 30
-        if now-self.pre_time>speed:
-            print("{}s : \t{} current cnt\t{}".format(round(now-self.pre_time),self.cnt-self.pre_cnt,self.cnt))
+        if now-self.pre_time>self.speed:
+            print("{}s:\tcurrent speed {}/s \ttotal:{}\ttimelapse:{}".format(round(now-self.pre_time),round((self.cnt-self.pre_cnt)/self.speed),self.cnt,parseHours(int(now-self.start_time))))
             self.pre_time = now
             self.pre_cnt = self.cnt
         _t,_tid,_,_tweet = str_raw.strip().split('\t')
         '''_t：毫秒时间戳，截取后3位到秒，比int截取方便'''
         # _t     = str(_t[:-3])
-        _tweet = re.sub(',',' ',_tweet.strip('\.'))
+        # _tweet = re.sub(',',' ',_tweet.strip('\.'))
         item   = stream.RawTweetItem(_t, _tid, _tweet)
         return item
+class tweetStreamFromLocalCSV(stream.ItemStream):
+    def __init__(self,filename,skip=0):
+        self.filename = filename
+        self._fp = codecs.open(filename,'rb')
+        self.cnt = 0
+        self.start_time = datetime.now().timestamp()
+        self.pre_time = datetime.now().timestamp()
+        self.pre_cnt = self.cnt
+        self.speed = 10
+        if skip:
+            self._fp.readline()
+    def __next__(self):
+        while True:
+            raw = self._fp.readline().strip()
+            self.cnt+=1
+            if not raw:
+                continue
+            else:
+                break
+            # return stream.EndOfStream
+        '''raw是redis的字节形式，需要解码'''
+        try:
+            str_raw = raw.decode('utf8')
+        except:
+            str_raw = raw.decode('gbk')
+
+        now  = datetime.now().timestamp()
+        if (now-self.pre_time)>self.speed:
+            print("{}s:\tcurrent speed {}/s \ttotal:{}\ttimelapse:{}".format(round(now-self.pre_time),round((self.cnt-self.pre_cnt)/self.speed),self.cnt,parseHours(int(now-self.start_time))))
+            self.pre_time = now
+            self.pre_cnt = self.cnt
+        _t,_tid,_,_tweet = str_raw.strip().split('\t')
+        '''_t：毫秒时间戳，截取后3位到秒，比int截取方便'''
+        # _t     = str(_t[:-3])
+        # TODO 性能分析：正则拖慢执行速度
+        # _tweet = re.sub(',',' ',_tweet.strip('\.'))
+        item   = stream.RawTweetItem(_t, _tid, _tweet)
+        return item
+def parseHours(seconds):
+    hours = int(seconds/3600)
+    minutes = int((seconds-hours*3600)/60)
+    seconds = seconds-hours*3600-minutes*60
+    return "{:0>2}:{:0>2}:{:0>2}".format(hours,minutes,seconds)
+
 def main():
-    ts = tweetStreamFromRedisSimple("tweets")
+    # ts = tweetStreamFromRedisSimple("tweets")
+    ts = tweetStreamFromLocalCSV("D:/Datasets/temp/ts_01.json")
     next(ts)
+
 if __name__ == '__main__':
-    import sys
-    import line_profiler
-    profile = line_profiler.LineProfiler(main)  # 把函数传递到性能分析器
-    profile.enable()  # 开始分析
-    main()
-    profile.disable()  # 停止分析
-    profile.print_stats(sys.stdout)  # 打印出性能分析结果
+    flag = 1
+    if flag:
+        import sys
+        import line_profiler
+        ts = tweetStreamFromLocalCSV("D:/Datasets/temp/ts_01.json")
+        # ts = tweetStreamFromRedisSimple("tweets")
+        next(ts)
+        next(ts)
+        next(ts)
+        profile = line_profiler.LineProfiler(main)  # 把函数传递到性能分析器
+        profile.enable()  # 开始分析
+        main()
+        profile.disable()  # 停止分析
+        profile.print_stats(sys.stdout)  # 打印出性能分析结果
+    else:
+        main()

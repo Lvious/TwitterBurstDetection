@@ -328,5 +328,10 @@ def deRepeatWords(w):
     return w
 
 if __name__ == '__main__':
-    for line in sys.stdin:
-        print(' '.join(tokenizeRawTweetText(line)))
+    import sys
+    import line_profiler
+    profile = line_profiler.LineProfiler(tokenize)  # 把函数传递到性能分析器
+    profile.enable()  # 开始分析
+    tokenize(puncC2E("RT @allkpop: NU'EST W becomes the 4th artist and 1st ever unit to reach over 200,000 in first-week sales https://t.co/ZWYqFCmaip https://t.…"))
+    profile.disable()  # 停止分析
+    profile.print_stats(sys.stdout)  # 打印出性能分析结果
